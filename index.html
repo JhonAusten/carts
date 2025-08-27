@@ -59,7 +59,7 @@ const ctx = canvas.getContext('2d');
 let player = {
   x: canvas.width / 2 - 20,
   y: canvas.height - 80,
-  width: 40,
+  width: 4,
   height: 60,
   color: 'blue',
   speed: 6
@@ -100,7 +100,7 @@ document.addEventListener('keyup', (e) => {
 });
 
 function spawnEnemyCar() {
-  const carWidth = [40, 60, 80][Math.floor(Math.random() * 2)];
+  const carWidth = [80, 100][Math.floor(Math.random() * 2)];
   const lanes = [
     roadX + laneWidth * 0.5 - carWidth/2,
     roadX + laneWidth * 1.5 - carWidth/2,
@@ -335,4 +335,5 @@ gameLoop();
 </body>
 
 </html>
+
 
