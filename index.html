@@ -100,7 +100,7 @@ document.addEventListener('keyup', (e) => {
 });
 
 function spawnEnemyCar() {
-  const carWidth = [40, 60][Math.floor(Math.random() * 2)];
+  const carWidth = [40, 60, 80][Math.floor(Math.random() * 2)];
   const lanes = [
     roadX + laneWidth * 0.5 - carWidth/2,
     roadX + laneWidth * 1.5 - carWidth/2,
@@ -335,3 +335,4 @@ gameLoop();
 </body>
 
 </html>
+
