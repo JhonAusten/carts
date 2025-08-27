@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Car Racing Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+      background: #111;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    #gameContainer {
+      position: relative;
+    }
+    canvas {
+      display: block;
+      background: #333;
+      border: 2px solid #555;
+    }
+    #scoreBoard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      color: #00ff00;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+    #instructions {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 14px;
+      color: #ccc;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+<div id="gameContainer">
+  <div id="scoreBoard">Cars Passed: 0</div>
+  <div id="instructions">
+    Use A/D or Arrow Keys to move<br>
+    Avoid other cars!<br>
+  </div>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let player = {
+  x: canvas.width / 2 - 20,
+  y: canvas.height - 80,
+  width: 40,
+  height: 60,
+  color: 'blue',
+  speed: 6
+};
+
+let enemyCars = [];
+let roadLines = [];
+let keys = {};
+let score = 0;
+let gameSpeed = 3;
+let gameOver = false;
+let roadOffset = 0;
+let waveTimer = 0;
+let isWaveActive = false;
+let waveCooldown = 0;
+
+const roadWidth = 400;
+const roadX = (canvas.width - roadWidth) / 2;
+const laneWidth = roadWidth / 4;
+
+function initRoadLines() {
+  for (let i = 0; i < 15; i++) {
+    roadLines.push({
+      x: canvas.width / 2 - 2,
+      y: i * 50,
+      width: 4,
+      height: 30
+    });
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+});
+
+document.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+});
+
+function spawnEnemyCar() {
+  const carWidth = [40, 60][Math.floor(Math.random() * 2)];
+  const lanes = [
+    roadX + laneWidth * 0.5 - carWidth/2,
+    roadX + laneWidth * 1.5 - carWidth/2,
+    roadX + laneWidth * 2.5 - carWidth/2,
+    roadX + laneWidth * 3.5 - carWidth/2
+  ];
+  
+  enemyCars.push({
+    x: lanes[Math.floor(Math.random() * lanes.length)],
+    y: -70,
+    width: carWidth,
+    height: 60,
+    color: ['green', 'yellow', 'orange', 'red', 'violet','black'][Math.floor(Math.random() * 5)],
+    passed: false
+  });
+}
+
+function spawnMultipleCars(count) {
+  const lanes = [
+    roadX + laneWidth * 0.5,
+    roadX + laneWidth * 1.5,
+    roadX + laneWidth * 2.5,
+    roadX + laneWidth * 3.5
+  ];
+  
+  const shuffledLanes = [...lanes].sort(() => Math.random() - 0.5);
+  
+  for (let i = 0; i < count && i < lanes.length; i++) {
+    const carWidth = [40, 54][Math.floor(Math.random() * 2)];
+    enemyCars.push({
+      x: shuffledLanes[i] - carWidth/2,
+      y: -80 - (i * 80),
+      width: carWidth,
+      height: 60,
+      color: ['#ff4444', '#44ff44', '#ffff44', '#ff44ff', '#44ffff'][Math.floor(Math.random() * 5)],
+      passed: false
+    });
+  }
+}
+
+function spawnWave() {
+  const wavePatterns = [
+    () => spawnMultipleCars(2),
+    () => spawnMultipleCars(3),
+    () => spawnMultipleCars(4),
+    () => {
+      spawnMultipleCars(2);
+      setTimeout(() => spawnMultipleCars(2), 800);
+    },
+    () => {
+      spawnEnemyCar();
+      setTimeout(() => spawnEnemyCar(), 300);
+      setTimeout(() => spawnEnemyCar(), 600);
+    }
+  ];
+  
+  const pattern = wavePatterns[Math.floor(Math.random() * wavePatterns.length)];
+  pattern();
+}
+
+function update() {
+  if (gameOver) return;
+
+  if (keys['KeyA'] || keys['ArrowLeft']) {
+    player.x -= player.speed;
+  }
+  if (keys['KeyD'] || keys['ArrowRight']) {
+    player.x += player.speed;
+  }
+
+  player.x = Math.max(roadX + 5, Math.min(roadX + roadWidth - player.width - 5, player.x));
+
+  roadOffset += gameSpeed;
+  roadLines.forEach(line => {
+    line.y += gameSpeed;
+    if (line.y > canvas.height) {
+      line.y = -30;
+    }
+  });
+
+  enemyCars.forEach((car, index) => {
+    car.y += gameSpeed + 1;
+    
+    if (!car.passed && car.y > player.y) {
+      car.passed = true;
+      score++;
+      document.getElementById('scoreBoard').innerText = `Cars Passed: ${score}`;
+    }
+    
+    if (car.y > canvas.height) {
+      enemyCars.splice(index, 1);
+    }
+  });
+
+  enemyCars.forEach(car => {
+    if (
+      player.x < car.x + car.width - 5 &&
+      player.x + player.width - 5 > car.x &&
+      player.y < car.y + car.height - 5 &&
+      player.y + player.height - 5 > car.y
+    ) {
+      gameOver = true;
+    }
+  });
+
+  waveTimer++;
+  if (waveCooldown > 0) {
+    waveCooldown--;
+  }
+  
+  if (!isWaveActive && waveCooldown <= 0 && waveTimer > 480 + Math.random() * 240) {
+    isWaveActive = true;
+    spawnWave();
+    waveTimer = 0;
+    waveCooldown = 180;
+    setTimeout(() => {
+      isWaveActive = false;
+    }, 2000);
+  }
+
+  gameSpeed = Math.min(8, 3 + score * 0.1);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#555';
+  ctx.fillRect(roadX, 0, roadWidth, canvas.height);
+
+  ctx.fillStyle = '#fff';
+  roadLines.forEach(line => {
+    ctx.fillRect(line.x, line.y, line.width, line.height);
+  });
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(roadX - 5, 0, 5, canvas.height);
+  ctx.fillRect(roadX + roadWidth, 0, 5, canvas.height);
+
+  ctx.fillStyle = player.color;
+  ctx.fillRect(player.x, player.y, player.width, player.height);
+  
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(player.x + 5, player.y + 5, 30, 15);
+  ctx.fillRect(player.x + 5, player.y + 40, 30, 15);
+  
+  enemyCars.forEach(car => {
+    ctx.fillStyle = car.color;
+    ctx.fillRect(car.x, car.y, car.width, car.height);
+    
+    ctx.fillStyle = '#ffffff';
+    const windowMargin = Math.floor(car.width * 0.125);
+    const windowWidth = car.width - (windowMargin * 2);
+    ctx.fillRect(car.x + windowMargin, car.y + 5, windowWidth, 15);
+    ctx.fillRect(car.x + windowMargin, car.y + 40, windowWidth, 15);
+  });
+
+  if (isWaveActive) {
+    ctx.fillStyle = '#ff6666';
+    ctx.font = '18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚠️ WAVE INCOMING! ⚠️', canvas.width / 2, 40);
+    ctx.textAlign = 'left';
+  }
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px sans-serif';
+  ctx.fillText(`Speed: ${Math.floor(gameSpeed)}`, 10, canvas.height - 20);
+
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = "#ff4444";
+    ctx.font = "48px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("CRASH!", canvas.width / 2, canvas.height / 2 - 50);
+    
+    ctx.fillStyle = "white";
+    ctx.font = "24px sans-serif";
+    ctx.fillText(`Final Score: ${score} cars passed`, canvas.width / 2, canvas.height / 2);
+    
+    ctx.font = "18px sans-serif";
+    ctx.fillText("Press R to Restart", canvas.width / 2, canvas.height / 2 + 50);
+    
+    ctx.textAlign = "left";
+  }
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+setInterval(() => {
+  if (!gameOver && !isWaveActive) {
+    const spawnChance = Math.min(0.85, 0.5 + score * 0.015);
+    if (Math.random() < spawnChance) {
+      if (Math.random() < 0.2) {
+        spawnMultipleCars(2);
+      } else {
+        spawnEnemyCar();
+      }
+    }
+  }
+}, 800);
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyR' && gameOver) {
+    resetGame();
+  }
+});
+
+function resetGame() {
+  player.x = canvas.width / 2 - 20;
+  player.y = canvas.height - 80;
+  enemyCars = [];
+  score = 0;
+  gameSpeed = 3;
+  gameOver = false;
+  roadOffset = 0;
+  waveTimer = 0;
+  isWaveActive = false;
+  waveCooldown = 0;
+  document.getElementById('scoreBoard').innerText = `Cars Passed: 0`;
+}
+
+initRoadLines();
+gameLoop();
+</script>
+
+</body>
+</html>
